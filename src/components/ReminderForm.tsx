@@ -3,12 +3,13 @@ import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format, addHours } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2, Edit } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createReminders } from "@/lib/api";
 import { z } from "zod";
+import EditReminderDialog from "@/components/EditReminderDialog";
 
 // Define the schema for a reminder
 const reminderSchema = z.object({
@@ -115,6 +116,13 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const [autoCreateComplete, setAutoCreateComplete] = useState(false);
+  const createRemindersRef = useRef<boolean>(false);
+  const [editingMedicine, setEditingMedicine] = useState<{
+    index: number;
+    details: MedicineDetails;
+    reminderInput: ReminderInput;
+  } | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const medicines = extractMedicineDetails(extractedText);
 
@@ -135,6 +143,9 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
   };
 
   const createRemindersHandler = async () => {
+    if (createRemindersRef.current) return; // Prevent multiple submissions
+    createRemindersRef.current = true;
+    
     setIsSubmitting(true);
     try {
       const reminderInputs = medicines.map(medicine => {
@@ -151,6 +162,9 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
         };
       });
 
+      // Log before creating reminders
+      console.log("Creating reminders with data:", reminderInputs);
+
       await createReminders(reminderInputs);
       
       toast.success("Reminders created successfully");
@@ -158,18 +172,41 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
     } catch (error) {
       console.error('Error creating reminders:', error);
       toast.error(error instanceof Error ? error.message : "Failed to create reminders. Please try again.");
+      createRemindersRef.current = false; // Reset to allow retry
     } finally {
       setIsSubmitting(false);
       setAutoCreateComplete(true);
     }
   };
 
+  // Handle medicine edit
+  const handleEditMedicine = (index: number) => {
+    const medicine = medicines[index];
+    const frequencyHours = getFrequencyHours(medicine.frequency);
+    const nextDue = addHours(new Date(), frequencyHours);
+    
+    setEditingMedicine({
+      index,
+      details: medicine,
+      reminderInput: {
+        medicineName: medicine.name,
+        dosage: medicine.dosage,
+        frequency: frequencyHours,
+        nextDue,
+        duration: medicine.duration,
+        notes: medicine.notes || null
+      }
+    });
+    
+    setIsEditDialogOpen(true);
+  };
+
   // Auto-create reminders when component mounts
   useEffect(() => {
-    if (medicines.length > 0 && !autoCreateComplete) {
+    if (medicines.length > 0 && !autoCreateComplete && !createRemindersRef.current) {
       createRemindersHandler();
     }
-  }, [medicines]);
+  }, [medicines, autoCreateComplete]);
 
   return (
     <div className="space-y-6 w-full max-w-md mx-auto">
@@ -179,8 +216,15 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
           <p className="text-center text-muted-foreground">No medicines found in the prescription</p>
         )}
         {medicines.map((medicine, index) => (
-          <div key={index} className="p-4 bg-card rounded-xl shadow-sm border border-border animate-scale-in" style={{ animationDelay: `${index * 100}ms` }}>
-            <p className="font-medium">{medicine.name}</p>
+          <div key={index} className="p-4 bg-card rounded-xl shadow-sm border border-border animate-scale-in relative" style={{ animationDelay: `${index * 100}ms` }}>
+            <button 
+              className="absolute top-2 right-2 p-1 bg-secondary/50 rounded-full hover:bg-secondary/70 transition-colors"
+              onClick={() => handleEditMedicine(index)}
+            >
+              <Edit className="h-3.5 w-3.5" />
+            </button>
+            
+            <p className="font-medium pr-7">{medicine.name}</p>
             <div className="mt-2 space-y-1">
               <p className="text-sm text-muted-foreground flex justify-between">
                 <span>Dosage:</span> <span>{medicine.dosage}</span>
@@ -210,6 +254,27 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
         >
           View Reminders
         </Button>
+      )}
+      
+      {/* This won't be used for creating reminders via the normal flow since we do it automatically,
+          but it provides the dialog structure for editing pre-creation */}
+      {editingMedicine && (
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <EditReminderDialog
+            reminder={{
+              id: `temp-${editingMedicine.index}`,
+              ...editingMedicine.reminderInput,
+              createdAt: new Date()
+            }}
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            onReminderUpdated={() => {
+              // This is just pre-creation editing, so we'll just close the dialog
+              setIsEditDialogOpen(false);
+              setEditingMedicine(null);
+            }}
+          />
+        </Dialog>
       )}
     </div>
   );

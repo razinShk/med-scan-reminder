@@ -1,21 +1,25 @@
 
 import { cn } from "@/lib/utils";
 import { format, differenceInHours, differenceInMinutes, isBefore } from "date-fns";
-import { Bell, Pill, Clock, CalendarDays, Trash2, Edit } from "lucide-react";
+import { Bell, Pill, Clock, CalendarDays, Trash2, Edit, Volume2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { deleteReminder } from "@/lib/api";
 import { type Reminder } from "@/lib/types";
+import { speakReminder, createReminderVoiceText } from "@/lib/voiceService";
+import { useState } from "react";
 
 interface ReminderCardProps {
   reminder: Reminder;
   onDelete?: () => void;
+  onEdit?: (reminder: Reminder) => void;
 }
 
-export default function ReminderCard({ reminder, onDelete }: ReminderCardProps) {
+export default function ReminderCard({ reminder, onDelete, onEdit }: ReminderCardProps) {
   const navigate = useNavigate();
   const nextDue = new Date(reminder.nextDue);
   const isOverdue = isBefore(nextDue, new Date());
+  const [isPlaying, setIsPlaying] = useState(false);
   
   const getDueText = () => {
     const now = new Date();
@@ -46,7 +50,32 @@ export default function ReminderCard({ reminder, onDelete }: ReminderCardProps) 
   
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/reminder/${reminder.id}`);
+    if (onEdit) {
+      onEdit(reminder);
+    } else {
+      navigate(`/reminder/${reminder.id}`);
+    }
+  };
+
+  const handlePlayVoice = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsPlaying(true);
+    
+    try {
+      const text = createReminderVoiceText(reminder.medicineName, reminder.dosage);
+      const audio = await speakReminder(text);
+      
+      if (audio) {
+        audio.onended = () => setIsPlaying(false);
+      } else {
+        // If no audio returned (fallback used), we'll reset after 5 seconds
+        setTimeout(() => setIsPlaying(false), 5000);
+      }
+    } catch (error) {
+      console.error("Failed to play voice reminder:", error);
+      toast.error("Failed to play voice reminder");
+      setIsPlaying(false);
+    }
   };
 
   return (
@@ -58,6 +87,21 @@ export default function ReminderCard({ reminder, onDelete }: ReminderCardProps) 
       onClick={() => navigate(`/reminder/${reminder.id}`)}
     >
       <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-1">
+        <button 
+          onClick={handlePlayVoice}
+          disabled={isPlaying}
+          className={cn(
+            "bg-primary/10 hover:bg-primary/20 text-primary rounded-full p-2 shadow-sm transition-all",
+            isPlaying && "animate-pulse"
+          )}
+          title="Test voice reminder"
+        >
+          {isPlaying ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Volume2 className="h-3.5 w-3.5" />
+          )}
+        </button>
         <button 
           onClick={handleEdit}
           className="bg-secondary hover:bg-secondary/80 rounded-full p-2 shadow-sm transition-all"

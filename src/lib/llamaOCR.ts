@@ -53,6 +53,10 @@ export async function processPrescriptionImage({ file, apiKey }: { file: File; a
     const extractedText = data.choices[0]?.message?.content?.trim();
 
     if (!extractedText) throw new Error("No text extracted from image");
+    
+    // Log the extracted text to console
+    console.log("Extracted Text:", extractedText);
+    
     return extractedText;
   } catch (error) {
     console.error("Llama OCR Error:", error);

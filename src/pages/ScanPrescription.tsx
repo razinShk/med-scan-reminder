@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -22,11 +22,16 @@ export default function ScanPrescription() {
     setSelectedImage(file);
     // Reset previous extraction
     setExtractedText(null);
-    // Automatically start scanning when an image is selected
-    handleScan(file);
   };
 
-  const handleScan = async (imageFile: File = selectedImage!) => {
+  // Watch for changes to selectedImage and start scanning
+  useEffect(() => {
+    if (selectedImage) {
+      handleScan(selectedImage);
+    }
+  }, [selectedImage]);
+
+  const handleScan = async (imageFile: File) => {
     if (!imageFile) {
       toast.error("Please select an image first");
       return;

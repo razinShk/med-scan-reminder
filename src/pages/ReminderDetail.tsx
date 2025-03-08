@@ -4,12 +4,14 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchReminderById, updateReminder, deleteReminder } from "@/lib/api";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { format } from "date-fns";
-import { Loader2, Pill, Calendar, Clock, Trash2, AlertCircle } from "lucide-react";
+import { Loader2, Pill, Calendar, Clock, Trash2, AlertCircle, Volume, Edit } from "lucide-react";
 import { useState } from "react";
+import EditReminderDialog from "@/components/EditReminderDialog";
+import { speakReminder, createReminderVoiceText } from "@/lib/voiceService";
 import { 
   Dialog,
   DialogContent,
@@ -22,10 +24,11 @@ import {
 export default function ReminderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   
-  const { data: reminder, isLoading, isError } = useQuery({
+  const { data: reminder, isLoading, isError, refetch } = useQuery({
     queryKey: ["reminder", id],
     queryFn: () => fetchReminderById(id!),
     retry: false,
@@ -56,6 +59,31 @@ export default function ReminderDetail() {
   const confirmDelete = () => {
     deleteMutation.mutate();
     setIsDeleteDialogOpen(false);
+  };
+
+  const handleEdit = () => {
+    setIsEditDialogOpen(true);
+  };
+
+  const handlePlayVoice = async () => {
+    if (!reminder || isPlaying) return;
+    
+    setIsPlaying(true);
+    try {
+      const text = createReminderVoiceText(reminder.medicineName, reminder.dosage);
+      const audio = await speakReminder(text);
+      
+      if (audio) {
+        audio.onended = () => setIsPlaying(false);
+      } else {
+        // If no audio returned (fallback used), we'll reset after 5 seconds
+        setTimeout(() => setIsPlaying(false), 5000);
+      }
+    } catch (error) {
+      console.error("Failed to play voice reminder:", error);
+      toast.error("Failed to play voice reminder");
+      setIsPlaying(false);
+    }
   };
 
   if (isLoading) {
@@ -90,13 +118,40 @@ export default function ReminderDetail() {
       
       <div className="container max-w-md mx-auto space-y-6 animate-fade-in">
         <div className="bg-card rounded-xl p-6 border shadow-sm">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Pill className="h-6 w-6" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Pill className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">{reminder.medicineName}</h1>
+                <p className="text-muted-foreground">{reminder.dosage}</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold">{reminder.medicineName}</h1>
-              <p className="text-muted-foreground">{reminder.dosage}</p>
+            
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="rounded-full"
+                onClick={handlePlayVoice}
+                disabled={isPlaying}
+              >
+                {isPlaying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Volume className="h-4 w-4" />
+                )}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="rounded-full"
+                onClick={handleEdit}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           
@@ -141,6 +196,7 @@ export default function ReminderDetail() {
         </Button>
       </div>
       
+      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-xl">
           <DialogHeader>
@@ -164,6 +220,16 @@ export default function ReminderDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Edit Reminder Dialog */}
+      {reminder && (
+        <EditReminderDialog
+          reminder={reminder}
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          onReminderUpdated={() => refetch()}
+        />
+      )}
     </div>
   );
 }
