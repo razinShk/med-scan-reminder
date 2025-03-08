@@ -1,8 +1,6 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -11,9 +9,11 @@ import ImageUploader from "@/components/ImageUploader";
 import ReminderForm from "@/components/ReminderForm";
 import { scanPrescription } from "@/lib/api";
 
+// Hardcoded API key
+const TOGETHER_API_KEY = "a60f1a37ec7f5f5af031531b8609f37efb53c94e7763aeb4f7820e2a434b5ab2";
+
 export default function ScanPrescription() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [apiKey, setApiKey] = useState<string>("");
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const navigate = useNavigate();
@@ -22,22 +22,19 @@ export default function ScanPrescription() {
     setSelectedImage(file);
     // Reset previous extraction
     setExtractedText(null);
+    // Automatically start scanning when an image is selected
+    handleScan(file);
   };
 
-  const handleScan = async () => {
-    if (!selectedImage) {
+  const handleScan = async (imageFile: File = selectedImage!) => {
+    if (!imageFile) {
       toast.error("Please select an image first");
-      return;
-    }
-
-    if (!apiKey) {
-      toast.error("Please enter your Together API key");
       return;
     }
 
     setIsScanning(true);
     try {
-      const text = await scanPrescription(selectedImage, apiKey);
+      const text = await scanPrescription(imageFile, TOGETHER_API_KEY);
       setExtractedText(text);
     } catch (error) {
       console.error("Scan failed:", error);
@@ -63,37 +60,12 @@ export default function ScanPrescription() {
           <div className="space-y-6">
             <ImageUploader onImageSelect={handleImageSelect} />
             
-            <div className="space-y-3 animate-fade-in">
-              <div className="space-y-2">
-                <Label htmlFor="api-key">Together API Key</Label>
-                <Input
-                  id="api-key"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Enter your Together API key"
-                  type="password"
-                  className="rounded-lg"
-                />
-                <p className="text-xs text-muted-foreground">
-                  You can get an API key from <a href="https://together.ai" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">together.ai</a>
-                </p>
+            {isScanning && (
+              <div className="flex flex-col items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+                <p className="text-muted-foreground">Scanning prescription...</p>
               </div>
-              
-              <Button
-                onClick={handleScan}
-                disabled={!selectedImage || !apiKey || isScanning}
-                className="w-full rounded-xl"
-              >
-                {isScanning ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Scanning...
-                  </>
-                ) : (
-                  "Scan Prescription"
-                )}
-              </Button>
-            </div>
+            )}
           </div>
         ) : (
           <ReminderForm extractedText={extractedText} />

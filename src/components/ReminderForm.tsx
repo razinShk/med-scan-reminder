@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, addHours } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -114,6 +114,7 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
 export default function ReminderForm({ extractedText }: { extractedText: string }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const [autoCreateComplete, setAutoCreateComplete] = useState(false);
 
   const medicines = extractMedicineDetails(extractedText);
 
@@ -159,8 +160,16 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
       toast.error(error instanceof Error ? error.message : "Failed to create reminders. Please try again.");
     } finally {
       setIsSubmitting(false);
+      setAutoCreateComplete(true);
     }
   };
+
+  // Auto-create reminders when component mounts
+  useEffect(() => {
+    if (medicines.length > 0 && !autoCreateComplete) {
+      createRemindersHandler();
+    }
+  }, [medicines]);
 
   return (
     <div className="space-y-6 w-full max-w-md mx-auto">
@@ -187,21 +196,21 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
         ))}
       </div>
 
-      <Button 
-        onClick={createRemindersHandler} 
-        disabled={isSubmitting || medicines.length === 0}
-        className="w-full rounded-xl animate-fade-in transition-all duration-300 shadow-md hover:shadow-lg"
-        style={{ animationDelay: '500ms' }}
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Creating Reminders
-          </>
-        ) : (
-          "Create Reminders"
-        )}
-      </Button>
+      {isSubmitting && (
+        <div className="flex flex-col items-center justify-center py-4">
+          <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+          <p className="text-muted-foreground">Creating reminders automatically...</p>
+        </div>
+      )}
+
+      {!isSubmitting && medicines.length > 0 && autoCreateComplete && (
+        <Button 
+          onClick={() => navigate("/reminders")}
+          className="w-full rounded-xl animate-fade-in transition-all duration-300 shadow-md hover:shadow-lg"
+        >
+          View Reminders
+        </Button>
+      )}
     </div>
   );
 }

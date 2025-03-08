@@ -10,27 +10,53 @@ export async function processPrescriptionImage({ file, apiKey }: { file: File; a
     // Convert image file to Base64
     const finalImageUrl = await encodeImage(file);
 
-    // In a real app, we would make an API call to Together AI here
-    // For now, we'll just simulate a response for demonstration purposes
+    const systemPrompt = `Convert the provided image into Markdown format. Ensure that all content from the page is included, such as headers, footers, subtexts, images (with alt text if possible), tables, and any other elements.
+    create a reminder card for each medicine with all its detail.
     
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    Requirements:
     
-    // Mocked response for demo purposes
-    const extractedText = `
-# Patient Prescription
-
-| Medicine Name | Dosage | Frequency | Duration | Notes |
-|---------------|--------|-----------|----------|-------|
-| TAB. Amoxicillin (500mg) | 1 tablet | twice daily | 7 days | Take after meals |
-| CAP. Omeprazole (20mg) | 1 capsule | once daily | 14 days | Take before breakfast |
-| SUSPENSION Paracetamol (250mg/5ml) | 10ml | every 6 hours | 5 days | For fever only |
+    - Output Only Markdown: Return solely the Markdown content without any additional explanations or comments.
+    - No Delimiters: Do not use code fences or delimiters like \`\`\`markdown.
+    - Complete Content: Do not omit any part of the page, including headers, footers, and subtext.
     `;
+
+    // Prepare request
+    const requestBody = {
+      model: visionLLM,
+      messages: [
+        { 
+          role: "user", 
+          content: [
+            { type: "text", text: systemPrompt }, 
+            { type: "image_url", image_url: { url: finalImageUrl } }
+          ] 
+        }
+      ]
+    };
+
+    // Make API call to Together AI
+    const response = await fetch("https://api.together.xyz/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Together AI API error: ${errorData.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const extractedText = data.choices[0]?.message?.content?.trim();
 
     if (!extractedText) throw new Error("No text extracted from image");
     return extractedText;
   } catch (error) {
     console.error("Llama OCR Error:", error);
+    toast.error("Failed to extract text from image: " + (error instanceof Error ? error.message : "Unknown error"));
     return null;
   }
 }
