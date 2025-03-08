@@ -1,0 +1,70 @@
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchReminders } from "@/lib/api";
+import Header from "@/components/Header";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { Plus, Pill, CalendarClock, Loader2 } from "lucide-react";
+import ReminderCard from "@/components/ReminderCard";
+
+export default function Reminders() {
+  const { data: reminders, isLoading, refetch } = useQuery({
+    queryKey: ["reminders"],
+    queryFn: fetchReminders,
+  });
+
+  const handleReminderDelete = () => {
+    refetch();
+  };
+
+  return (
+    <div className="min-h-screen pt-16 pb-6 px-4">
+      <Header title="My Reminders" showBackButton />
+      
+      <div className="container max-w-md mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">My Reminders</h1>
+          <Link to="/scan">
+            <Button size="sm" className="rounded-full">
+              <Plus className="h-4 w-4 mr-1" />
+              Add New
+            </Button>
+          </Link>
+        </div>
+        
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+            <p className="text-muted-foreground">Loading reminders...</p>
+          </div>
+        ) : reminders && reminders.length > 0 ? (
+          <div className="space-y-4">
+            {reminders.map((reminder, index) => (
+              <ReminderCard 
+                key={reminder.id} 
+                reminder={reminder} 
+                onDelete={handleReminderDelete}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="bg-muted/50 p-3 rounded-full mb-4">
+              <CalendarClock className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium mb-2">No reminders yet</h3>
+            <p className="text-muted-foreground mb-6 max-w-xs">
+              Scan a prescription to automatically set up medicine reminders
+            </p>
+            <Link to="/scan">
+              <Button className="rounded-lg">
+                <Plus className="h-4 w-4 mr-2" />
+                Scan Prescription
+              </Button>
+            </Link>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
