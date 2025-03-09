@@ -10,6 +10,15 @@ import { useNavigate } from "react-router-dom";
 import { createReminders } from "@/lib/api";
 import { z } from "zod";
 import EditReminderDialog from "@/components/EditReminderDialog";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from "@/components/ui/dialog";
+import { Reminder } from "@/lib/types";
 
 // Define the schema for a reminder
 const reminderSchema = z.object({
@@ -256,24 +265,30 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
         </Button>
       )}
       
-      {/* This won't be used for creating reminders via the normal flow since we do it automatically,
-          but it provides the dialog structure for editing pre-creation */}
+      {/* Edit Dialog for medicine details */}
       {editingMedicine && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <EditReminderDialog
-            reminder={{
-              id: `temp-${editingMedicine.index}`,
-              ...editingMedicine.reminderInput,
-              createdAt: new Date()
-            }}
-            open={isEditDialogOpen}
-            onOpenChange={setIsEditDialogOpen}
-            onReminderUpdated={() => {
-              // This is just pre-creation editing, so we'll just close the dialog
-              setIsEditDialogOpen(false);
-              setEditingMedicine(null);
-            }}
-          />
+          <DialogContent className="sm:max-w-[425px] rounded-xl">
+            <EditReminderDialog
+              reminder={{
+                id: `temp-${editingMedicine.index}`,
+                medicineName: editingMedicine.reminderInput.medicineName,
+                dosage: editingMedicine.reminderInput.dosage,
+                frequency: editingMedicine.reminderInput.frequency,
+                nextDue: editingMedicine.reminderInput.nextDue,
+                duration: editingMedicine.reminderInput.duration,
+                notes: editingMedicine.reminderInput.notes,
+                createdAt: new Date()
+              }}
+              open={isEditDialogOpen}
+              onOpenChange={setIsEditDialogOpen}
+              onReminderUpdated={() => {
+                // This is just pre-creation editing, so we'll just close the dialog
+                setIsEditDialogOpen(false);
+                setEditingMedicine(null);
+              }}
+            />
+          </DialogContent>
         </Dialog>
       )}
     </div>

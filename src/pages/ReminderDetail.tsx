@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchReminderById, updateReminder, deleteReminder } from "@/lib/api";
@@ -76,7 +75,6 @@ export default function ReminderDetail() {
       if (audio) {
         audio.onended = () => setIsPlaying(false);
       } else {
-        // If no audio returned (fallback used), we'll reset after 5 seconds
         setTimeout(() => setIsPlaying(false), 5000);
       }
     } catch (error) {
@@ -114,7 +112,7 @@ export default function ReminderDetail() {
 
   return (
     <div className="min-h-screen pt-16 pb-6 px-4">
-      <Header title="Reminder Details" showBackButton />
+      <Header showBackButton>Reminder Details</Header>
       
       <div className="container max-w-md mx-auto space-y-6 animate-fade-in">
         <div className="bg-card rounded-xl p-6 border shadow-sm">
@@ -196,7 +194,6 @@ export default function ReminderDetail() {
         </Button>
       </div>
       
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-xl">
           <DialogHeader>
@@ -221,7 +218,6 @@ export default function ReminderDetail() {
         </DialogContent>
       </Dialog>
       
-      {/* Edit Reminder Dialog */}
       {reminder && (
         <EditReminderDialog
           reminder={reminder}
