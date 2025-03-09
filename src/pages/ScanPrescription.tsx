@@ -19,6 +19,7 @@ export default function ScanPrescription() {
   const navigate = useNavigate();
 
   const handleImageSelect = (file: File) => {
+    if (isScanning) return; // Prevent starting a new scan while one is in progress
     setSelectedImage(file);
     // Reset previous extraction
     setExtractedText(null);
@@ -26,7 +27,7 @@ export default function ScanPrescription() {
 
   // Watch for changes to selectedImage and start scanning
   useEffect(() => {
-    if (selectedImage) {
+    if (selectedImage && !isScanning) {
       handleScan(selectedImage);
     }
   }, [selectedImage]);
