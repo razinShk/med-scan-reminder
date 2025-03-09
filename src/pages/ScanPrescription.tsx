@@ -39,12 +39,24 @@ export default function ScanPrescription() {
 
     setIsScanning(true);
     try {
+      // Check file size - mobile browsers often have very large image files
+      const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+      if (imageFile.size > MAX_FILE_SIZE) {
+        toast.info("Optimizing image for processing...");
+        // Will be handled by compression in the API layer
+      }
+
       const text = await scanPrescription(imageFile, TOGETHER_API_KEY);
       console.log("Extracted text from prescription:", text);
+      
+      if (!text) {
+        throw new Error("No text could be extracted from the image");
+      }
+      
       setExtractedText(text);
     } catch (error) {
       console.error("Scan failed:", error);
-      toast.error("Failed to scan prescription. Please try again.");
+      toast.error("Failed to scan prescription. Please try again with a clearer image.");
     } finally {
       setIsScanning(false);
     }

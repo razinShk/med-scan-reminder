@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchReminderById, updateReminder, deleteReminder } from "@/lib/api";
@@ -105,7 +106,7 @@ export default function ReminderDetail() {
 
   return (
     <div className="min-h-screen pt-16 pb-6 px-4">
-      <Header showBackButton>Reminder Details</Header>
+      <Header title="Reminder Details" showBackButton />
       
       <div className="container max-w-md mx-auto space-y-6 animate-fade-in">
         <div className="bg-card rounded-xl p-6 border shadow-sm">

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,7 +96,7 @@ export default function AddReminderManual() {
 
   return (
     <div className="min-h-screen pt-16 pb-6 px-4">
-      <Header showBackButton>Add Reminder</Header>
+      <Header title="Add Reminder" showBackButton />
       
       <div className="container max-w-md mx-auto space-y-6 animate-fade-in">
         <div className="space-y-2">

@@ -1,113 +1,78 @@
+import { fetchReminders, updateReminder } from "./api";
+import { type Reminder } from "./types";
+import { showNotification } from "./notificationService";
 
-import { fetchReminders } from "./api";
-import { Reminder } from "./types";
-import { sendReminderNotification } from "./notificationService";
-import { toast } from "sonner";
-import { addHours } from "date-fns";
-import { updateReminder } from "./api";
+// Function to schedule the next check for reminders
+export const scheduleNextCheck = () => {
+  // Calculate the time until the next minute
+  const now = new Date();
+  const seconds = now.getSeconds();
+  const milliseconds = now.getMilliseconds();
+  const timeToNextMinute = (60 - seconds) * 1000 - milliseconds;
 
-// Store for active reminders
-let activeReminders: Map<string, NodeJS.Timeout> = new Map();
-let isInitialized = false;
+  // Schedule the next check at the start of the next minute
+  setTimeout(checkRemindersNow, timeToNextMinute);
+  console.log(`Next check scheduled in ${timeToNextMinute / 1000} seconds`);
+};
 
-// Initialize the reminder scheduler
-export async function initReminderScheduler(): Promise<void> {
-  if (isInitialized) return;
-  
-  try {
-    // Request notification permission on initialization
-    if ("Notification" in window && Notification.permission !== "granted") {
-      await Notification.requestPermission();
-    }
-    
-    // Load reminders and schedule them
-    await scheduleAllReminders();
-    
-    // Check for new reminders every minute
-    const intervalId = setInterval(scheduleAllReminders, 60 * 1000);
-    
-    // Store the interval ID for cleanup
-    window.addEventListener("beforeunload", () => {
-      clearInterval(intervalId);
-      // Clear all active timeouts
-      activeReminders.forEach(timeoutId => clearTimeout(timeoutId));
-      activeReminders.clear();
-    });
-    
-    isInitialized = true;
-    console.log("Reminder scheduler initialized");
-  } catch (error) {
-    console.error("Failed to initialize reminder scheduler:", error);
-  }
-}
-
-// Schedule all reminders
-async function scheduleAllReminders(): Promise<void> {
+export const checkRemindersNow = async () => {
   try {
     const reminders = await fetchReminders();
+    const now = new Date();
     
-    // Clear existing timeouts
-    activeReminders.forEach(timeoutId => clearTimeout(timeoutId));
-    activeReminders.clear();
+    console.log(`Checking ${reminders.length} reminders at ${now.toLocaleTimeString()}`);
     
-    // Schedule each reminder
-    reminders.forEach(scheduleReminder);
+    let remindersUpdated = false;
+    
+    for (const reminder of reminders) {
+      const nextDue = new Date(reminder.nextDue);
+      
+      // Check if this reminder is due now or in the past
+      if (nextDue <= now) {
+        // Trigger notification
+        await triggerReminderNotification(reminder);
+        
+        // Update the next due time based on frequency (in hours)
+        // Add the frequency in hours to the current time, not the past due time
+        const newNextDue = new Date();
+        newNextDue.setHours(newNextDue.getHours() + reminder.frequency);
+        
+        // Update the reminder
+        await updateReminder(reminder.id, { nextDue: newNextDue });
+        remindersUpdated = true;
+        
+        console.log(`Reminder for ${reminder.medicineName} triggered and updated to next due at ${newNextDue.toLocaleString()}`);
+      }
+    }
+    
+    // If we updated any reminders, schedule the next check
+    if (remindersUpdated) {
+      scheduleNextCheck();
+    }
+    
+    return remindersUpdated;
   } catch (error) {
-    console.error("Failed to schedule reminders:", error);
+    console.error("Error checking reminders:", error);
+    return false;
   }
-}
+};
 
-// Schedule an individual reminder
-function scheduleReminder(reminder: Reminder): void {
-  const now = new Date();
-  const nextDue = new Date(reminder.nextDue);
-  
-  // Skip if the next due time is in the past
-  if (nextDue <= now) {
-    // Update the next due time for past reminders
-    updateNextDueTime(reminder);
-    return;
-  }
-  
-  // Calculate time until next due in milliseconds
-  const timeUntilDue = nextDue.getTime() - now.getTime();
-  
-  // Schedule the notification
-  const timeoutId = setTimeout(() => {
-    // Send notification and voice reminder
-    sendReminderNotification(reminder);
-    
-    // Update next due time and reschedule
-    updateNextDueTime(reminder);
-  }, timeUntilDue);
-  
-  // Store the timeout ID
-  activeReminders.set(reminder.id, timeoutId);
-  
-  console.log(`Scheduled reminder for ${reminder.medicineName} at ${nextDue.toLocaleString()}`);
-}
-
-// Update the next due time for a reminder
-async function updateNextDueTime(reminder: Reminder): Promise<void> {
+// Function to trigger a reminder notification
+async function triggerReminderNotification(reminder: Reminder, force = false) {
   try {
-    // Calculate the next due time based on frequency
-    const nextDue = addHours(new Date(), reminder.frequency);
-    
-    // Update the reminder in the API
-    await updateReminder({
-      ...reminder,
-      nextDue
-    });
-    
-    // Reschedule the updated reminder
-    const updatedReminder = { ...reminder, nextDue };
-    scheduleReminder(updatedReminder);
+    // Show a notification
+    showNotification(
+      `Reminder: ${reminder.medicineName}`,
+      `Time to take your ${reminder.dosage}`,
+      force
+    );
   } catch (error) {
-    console.error(`Failed to update next due time for reminder ${reminder.id}:`, error);
+    console.error("Failed to show notification:", error);
   }
 }
 
-// Force check reminders now (can be called after adding a new reminder)
-export async function checkRemindersNow(): Promise<void> {
-  await scheduleAllReminders();
-}
+// Initialize the reminder scheduler
+export const initReminderScheduler = () => {
+  console.log("Reminder scheduler initialized");
+  scheduleNextCheck();
+};
