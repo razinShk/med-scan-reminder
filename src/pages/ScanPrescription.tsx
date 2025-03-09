@@ -40,6 +40,7 @@ export default function ScanPrescription() {
     setIsScanning(true);
     try {
       const text = await scanPrescription(imageFile, TOGETHER_API_KEY);
+      console.log("Extracted text from prescription:", text);
       setExtractedText(text);
     } catch (error) {
       console.error("Scan failed:", error);

@@ -4,7 +4,7 @@ import { fetchReminders } from "@/lib/api";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Plus, Pill, CalendarClock, Loader2 } from "lucide-react";
+import { Plus, Pill, CalendarClock, Loader2, PenLine } from "lucide-react";
 import ReminderCard from "@/components/ReminderCard";
 
 export default function Reminders() {
@@ -24,12 +24,20 @@ export default function Reminders() {
       <div className="container max-w-md mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">My Reminders</h1>
-          <Link to="/scan">
-            <Button size="sm" className="rounded-full">
-              <Plus className="h-4 w-4 mr-1" />
-              Add New
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link to="/add-reminder">
+              <Button size="sm" className="rounded-full" variant="outline">
+                <PenLine className="h-4 w-4 mr-1" />
+                Manual
+              </Button>
+            </Link>
+            <Link to="/scan">
+              <Button size="sm" className="rounded-full">
+                <Plus className="h-4 w-4 mr-1" />
+                Scan
+              </Button>
+            </Link>
+          </div>
         </div>
         
         {isLoading ? (
@@ -54,14 +62,22 @@ export default function Reminders() {
             </div>
             <h3 className="text-lg font-medium mb-2">No reminders yet</h3>
             <p className="text-muted-foreground mb-6 max-w-xs">
-              Scan a prescription to automatically set up medicine reminders
+              Add reminders manually or by scanning a prescription
             </p>
-            <Link to="/scan">
-              <Button className="rounded-lg">
-                <Plus className="h-4 w-4 mr-2" />
-                Scan Prescription
-              </Button>
-            </Link>
+            <div className="flex gap-4">
+              <Link to="/add-reminder">
+                <Button variant="outline" className="rounded-lg">
+                  <PenLine className="h-4 w-4 mr-2" />
+                  Add Manually
+                </Button>
+              </Link>
+              <Link to="/scan">
+                <Button className="rounded-lg">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Scan Prescription
+                </Button>
+              </Link>
+            </div>
           </div>
         )}
       </div>

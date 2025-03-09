@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import ScanPrescription from "./pages/ScanPrescription";
 import Reminders from "./pages/Reminders";
 import ReminderDetail from "./pages/ReminderDetail";
+import AddReminderManual from "./pages/AddReminderManual";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/scan" element={<ScanPrescription />} />
             <Route path="/reminders" element={<Reminders />} />
             <Route path="/reminder/:id" element={<ReminderDetail />} />
+            <Route path="/add-reminder" element={<AddReminderManual />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AnimatePresence>
