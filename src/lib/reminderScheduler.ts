@@ -1,6 +1,7 @@
+
 import { fetchReminders, updateReminder } from "./api";
 import { type Reminder } from "./types";
-import { showNotification } from "./notificationService";
+import { sendReminderNotification } from "./notificationService";
 
 // Function to schedule the next check for reminders
 export const scheduleNextCheck = () => {
@@ -60,12 +61,8 @@ export const checkRemindersNow = async () => {
 // Function to trigger a reminder notification
 async function triggerReminderNotification(reminder: Reminder, force = false) {
   try {
-    // Show a notification
-    showNotification(
-      `Reminder: ${reminder.medicineName}`,
-      `Time to take your ${reminder.dosage}`,
-      force
-    );
+    // Use the correct function from notificationService
+    sendReminderNotification(reminder);
   } catch (error) {
     console.error("Failed to show notification:", error);
   }
