@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,8 @@ import Header from "@/components/Header";
 import { speakReminder, createReminderVoiceText } from "@/lib/voiceService";
 import { type Reminder } from "@/lib/types";
 import { addHours } from "date-fns";
+import { checkRemindersNow } from "@/lib/reminderScheduler";
+import { requestNotificationPermission } from "@/lib/notificationService";
 
 export default function AddReminderManual() {
   const navigate = useNavigate();
@@ -33,6 +34,9 @@ export default function AddReminderManual() {
       return;
     }
 
+    // Request notification permission if we haven't yet
+    await requestNotificationPermission();
+    
     setIsSubmitting(true);
     
     try {
@@ -54,6 +58,10 @@ export default function AddReminderManual() {
       
       await createReminder(reminderData);
       toast.success("Reminder created successfully");
+      
+      // Check for reminders immediately after creating a new one
+      await checkRemindersNow();
+      
       navigate("/reminders");
     } catch (error) {
       console.error("Error creating reminder:", error);
@@ -87,7 +95,7 @@ export default function AddReminderManual() {
 
   return (
     <div className="min-h-screen pt-16 pb-6 px-4">
-      <Header title="Add Reminder" showBackButton />
+      <Header showBackButton>Add Reminder</Header>
       
       <div className="container max-w-md mx-auto space-y-6 animate-fade-in">
         <div className="space-y-2">

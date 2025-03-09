@@ -36,18 +36,11 @@ export default function ReminderDetail() {
   const deleteMutation = useMutation({
     mutationFn: () => deleteReminder(id!),
     onSuccess: () => {
-      toast({
-        title: "Reminder deleted",
-        description: "The reminder has been successfully deleted",
-      });
+      toast.success("Reminder deleted");
       navigate("/reminders");
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete the reminder. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete the reminder. Please try again.");
     },
   });
 
