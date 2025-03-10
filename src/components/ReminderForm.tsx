@@ -43,6 +43,64 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
   const medicines: MedicineDetails[] = [];
   const lines: string[] = text.split("\n");
 
+  const reminderCardRegex = /\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?\s*\n\s*\*\s*\*\*Dosage\*\*:\s*([^\n]+)\n\s*\*\s*\*\*Duration\*\*:\s*([^\n]+)/gi;
+  let match;
+  const cardMatches = [];
+  
+  let textCopy = text;
+  
+  while ((match = reminderCardRegex.exec(textCopy)) !== null) {
+    const medicineName = match[1].trim();
+    const strength = match[2] ? ` (${match[2].trim()})` : '';
+    const dosage = match[3].trim();
+    const durationText = match[4].trim();
+    
+    let duration = 7; // Default duration
+    
+    if (durationText.toLowerCase().includes('month')) {
+      duration = 30;
+    } else if (durationText.toLowerCase().includes('week')) {
+      const weekMatch = durationText.match(/(\d+)\s*weeks?/i);
+      duration = weekMatch ? parseInt(weekMatch[1]) * 7 : 7;
+    } else if (durationText.toLowerCase().includes('day')) {
+      const dayMatch = durationText.match(/(\d+)\s*days?/i);
+      duration = dayMatch ? parseInt(dayMatch[1]) : 7;
+    }
+    
+    let frequency = "once daily";
+    const dosagePattern = dosage.match(/(\d+)-(\d+)-(\d+)/);
+    
+    if (dosagePattern) {
+      const morning = parseInt(dosagePattern[1]) > 0;
+      const afternoon = parseInt(dosagePattern[2]) > 0;
+      const night = parseInt(dosagePattern[3]) > 0;
+      
+      const timesPerDay = [morning, afternoon, night].filter(Boolean).length;
+      
+      if (timesPerDay === 3) {
+        frequency = "thrice daily";
+      } else if (timesPerDay === 2) {
+        frequency = "twice daily";
+      } else {
+        frequency = "once daily";
+      }
+    }
+    
+    medicines.push({
+      name: medicineName + strength,
+      dosage: dosage,
+      frequency: frequency,
+      duration: duration,
+      notes: ''
+    });
+    
+    cardMatches.push(match[0]);
+  }
+  
+  if (medicines.length > 0) {
+    return medicines;
+  }
+  
   const headerPatterns: RegExp[] = [
     /^\s*\|[\s-]*\|/, 
     /\|\s*Medicine\s*Name\s*\|/i, 

@@ -83,15 +83,25 @@ export async function processPrescriptionImage({ file, apiKey }: { file: File; a
     // Convert image file to Base64
     const finalImageUrl = await encodeImage(processedFile);
 
-    const systemPrompt = `Convert the provided image into Markdown format. Ensure that all content from the page is included, such as headers, footers, subtexts, images (with alt text if possible), tables, and any other elements.
-    create a reminder card for each medicine with all its detail.
-    
-    Requirements:
-    
-    - Output Only Markdown: Return solely the Markdown content without any additional explanations or comments.
-    - No Delimiters: Do not use code fences or delimiters like \`\`\`markdown.
-    - Complete Content: Do not omit any part of the page, including headers, footers, and subtext.
-    `;
+    const systemPrompt = `Extract medicine information from this prescription image and format it as REMINDER CARDS in the exact format shown below:
+
+**MEDICINE_NAME (STRENGTH)**
+
+* **Dosage**: DOSAGE_INSTRUCTION
+* **Duration**: DURATION_PERIOD
+
+For each medicine, show:
+1. Medicine name and strength (if available) in bold
+2. Dosage instructions (including timing like "1-0-1" which means morning-afternoon-night where 1=yes, 0=no)
+3. Duration (in days, weeks, or months)
+
+For dosage format like "1-0-1", this means:
+- First number: Morning dose (1 = take, 0 = don't take)
+- Second number: Afternoon dose
+- Third number: Night/evening dose
+
+Multiple cards should be separated by a blank line. DO NOT include any explanatory text or other formatting.
+`;
 
     // Prepare request with timeout
     const requestBody = {

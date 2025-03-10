@@ -2,13 +2,14 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import ImageUploader from "@/components/ImageUploader";
 import ReminderForm from "@/components/ReminderForm";
 import { scanPrescription } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Hardcoded API key
 const TOGETHER_API_KEY = "a60f1a37ec7f5f5af031531b8609f37efb53c94e7763aeb4f7820e2a434b5ab2";
@@ -17,6 +18,7 @@ export default function ScanPrescription() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [showTextPreview, setShowTextPreview] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -95,7 +97,36 @@ export default function ScanPrescription() {
             )}
           </div>
         ) : (
-          <ReminderForm extractedText={extractedText} onReminderCreated={handleReminderCreated} />
+          <>
+            <ReminderForm extractedText={extractedText} onReminderCreated={handleReminderCreated} />
+            
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full mt-4"
+              onClick={() => setShowTextPreview(true)}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              View Raw Text
+            </Button>
+            
+            <Dialog open={showTextPreview} onOpenChange={setShowTextPreview}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Extracted Text</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto mt-4 border rounded-md p-4 bg-muted/20">
+                  <pre className="whitespace-pre-wrap text-sm">{extractedText}</pre>
+                </div>
+                <Button 
+                  className="mt-4"
+                  onClick={() => setShowTextPreview(false)}
+                >
+                  Close
+                </Button>
+              </DialogContent>
+            </Dialog>
+          </>
         )}
       </div>
     </div>
