@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, Eye } from "lucide-react";
+import { Loader2, Eye, Camera } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import ImageUploader from "@/components/ImageUploader";
@@ -27,11 +27,13 @@ export default function ScanPrescription() {
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [showTextPreview, setShowTextPreview] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const handleImageSelect = (file: File) => {
     if (isScanning) return; // Prevent starting a new scan while one is in progress
+    setScanError(null);
     setSelectedImage(file);
     // Reset previous extraction
     setExtractedText(null);
@@ -51,6 +53,7 @@ export default function ScanPrescription() {
     }
 
     setIsScanning(true);
+    setScanError(null);
     try {
       // Check file size - mobile browsers often have very large image files
       const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
@@ -69,6 +72,8 @@ export default function ScanPrescription() {
       setExtractedText(text);
     } catch (error) {
       console.error("Scan failed:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setScanError(errorMessage);
       toast.error("Failed to scan prescription. Please try again with a clearer image.");
     } finally {
       setIsScanning(false);
@@ -79,6 +84,12 @@ export default function ScanPrescription() {
     // Invalidate reminders query to force a refetch
     queryClient.invalidateQueries({ queryKey: ["reminders"] });
     navigate("/reminders");
+  };
+
+  const handleTryAgain = () => {
+    setSelectedImage(null);
+    setExtractedText(null);
+    setScanError(null);
   };
 
   return (
@@ -101,6 +112,23 @@ export default function ScanPrescription() {
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
                 <p className="text-muted-foreground">Scanning prescription...</p>
+              </div>
+            )}
+
+            {scanError && !isScanning && (
+              <div className="p-4 border border-destructive/30 bg-destructive/10 rounded-xl space-y-3 text-center">
+                <p className="text-muted-foreground">Failed to extract text from the image.</p>
+                <Button onClick={handleTryAgain} variant="outline" size="sm">
+                  Try Again
+                </Button>
+                <Button 
+                  onClick={() => navigate("/add-reminder")} 
+                  variant="outline" 
+                  size="sm"
+                  className="ml-2"
+                >
+                  Add Manually
+                </Button>
               </div>
             )}
           </div>
