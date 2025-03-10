@@ -75,7 +75,7 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
       if (parts.length < 2) continue;
 
       // Try to identify medicine name in the first or second column
-      const medicineNameCol = parts[0].match(/^\d+\)/) ? parts[0] : parts[1];
+      const medicineNameCol = parts[0].length > 2 ? parts[0] : parts[1];
       const medicineName = extractMedicineName(medicineNameCol);
       
       if (!medicineName) continue;
@@ -177,35 +177,86 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
         
         console.log("Found potential medicine line:", line);
         
-        // Basic extraction - get the first part as the name and the rest as dosage
-        const parts = line.split(/[-:]/);
-        let medicineName = parts[0].trim();
-        let dosageInfo = parts.length > 1 ? parts.slice(1).join(' ').trim() : "1 unit daily";
+        // Extract medicine from the line
+        const medicineMatch = line.match(/\b(\d+\)?\s*)?(TAB\.|Tab\.|CAP\.|Cap\.|TABLET|Tablet|CAPSULE|Capsule|SYR\.|Syr\.|SYRUP|Syrup|INJ\.|Inj\.|INJECTION|Injection|DROP|Drop|DROPS|Drops|SUSPENSION|Suspension)\s*\.?\s*([A-Za-z0-9\s]+)(?:\s*\(([^)]+)\))?/i);
         
-        // Clean up medicine name
-        for (const indicator of commonMedicineTypeIndicators) {
-          if (medicineName.includes(indicator)) {
-            // Extract what's after the indicator as the actual name
-            const nameParts = medicineName.split(indicator);
-            if (nameParts.length > 1) {
-              medicineName = indicator + " " + nameParts[1].trim();
-              break;
+        if (medicineMatch) {
+          const medicineType = medicineMatch[2];
+          const medicineName = medicineMatch[3]?.trim();
+          const composition = medicineMatch[4] ? ` (${medicineMatch[4]})` : '';
+          
+          if (medicineName) {
+            // Extract dosage information - look for patterns like "1 Morning" or "After food"
+            const dosageMatch = line.match(/\b(\d+\s*(?:Morning|Evening|Night|Daily|Afternoon|Noon|AM|PM)(?:,\s*\d+\s*(?:Morning|Evening|Night|Daily|Afternoon|Noon|AM|PM))*)\b/i) || 
+                               line.match(/\b((?:After|Before|With)\s+(?:Food|Meals?))\b/i);
+            
+            const dosageInfo = dosageMatch ? dosageMatch[1] : "1 daily";
+            const frequency = determineDosageFrequency(dosageInfo);
+            
+            // Try to find duration
+            const durationMatch = line.match(/\b(\d+)\s*(?:days?|weeks?)\b/i);
+            const duration = durationMatch ? 
+                             (durationMatch[0].toLowerCase().includes("week") ? parseInt(durationMatch[1]) * 7 : parseInt(durationMatch[1])) : 
+                             7;
+            
+            medicines.push({
+              name: `${medicineType} ${medicineName}${composition}`,
+              dosage: dosageInfo,
+              frequency,
+              duration,
+              notes: ''
+            });
+          }
+        } else {
+          // Basic extraction - get the first part as the name and the rest as dosage
+          const parts = line.split(/[-:]/);
+          let medicineName = parts[0].trim();
+          let dosageInfo = parts.length > 1 ? parts.slice(1).join(' ').trim() : "1 unit daily";
+          
+          // Clean up medicine name
+          for (const indicator of commonMedicineTypeIndicators) {
+            if (medicineName.includes(indicator)) {
+              // Extract what's after the indicator as the actual name
+              const nameParts = medicineName.split(indicator);
+              if (nameParts.length > 1) {
+                medicineName = indicator + " " + nameParts[1].trim();
+                break;
+              }
             }
           }
-        }
-        
-        if (medicineName) {
-          const frequency = determineDosageFrequency(dosageInfo);
-          const duration = extractDurationFromString(dosageInfo) || 7;
           
-          medicines.push({
-            name: medicineName,
-            dosage: dosageInfo || "As directed",
-            frequency,
-            duration,
-            notes: ''
-          });
+          if (medicineName) {
+            const frequency = determineDosageFrequency(dosageInfo);
+            const duration = extractDurationFromString(dosageInfo) || 7;
+            
+            medicines.push({
+              name: medicineName,
+              dosage: dosageInfo || "As directed",
+              frequency,
+              duration,
+              notes: ''
+            });
+          }
         }
+      }
+    }
+  }
+  
+  // Even more aggressive fallback: Try to find any medicine-like names in the text
+  if (medicines.length === 0) {
+    const medicineNamePattern = /\b([A-Z][a-z]+(?:[-\s][A-Z][a-z]+)*)\s+(?:\d+\s*(?:mg|mcg|ml|g))?\b/g;
+    let match;
+    
+    while ((match = medicineNamePattern.exec(text)) !== null) {
+      const medicineName = match[1].trim();
+      if (medicineName.length > 3 && !/Medicine|Patient|Doctor|Prescription|Hospital|Clinic|Name|Date|Diagnosis/i.test(medicineName)) {
+        medicines.push({
+          name: medicineName,
+          dosage: "As directed",
+          frequency: "once daily",
+          duration: 7,
+          notes: ''
+        });
       }
     }
   }
@@ -216,25 +267,40 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
 
 // Helper functions for medicine extraction
 function extractMedicineName(text: string): string | null {
-  const medNamePattern = /(?:^\d+\)?\s*)?(?:med\s+)?(?:TAB\.|Tab\.|CAP\.|Cap\.|SUSPENSION|Suspension|DROP|Drop|SYR\.|Syr\.)\.\s*([^|(]+)(?:\s*\(([^)]+)\))?/i;
-  const numberedPattern = /^\d+\)\s*(?:TAB\.|CAP\.|SUSPENSION|DROP|SYR\.)\.\s*([^|(]+)(?:\s*\(([^)]+)\))?/i;
-  const simpleMedPattern = /([A-Z][A-Za-z\s\d]+)(?:\s*\(([^)]+)\))?/;
+  // Try to extract medicine name based on common patterns
   
-  // Try the specific patterns first
-  const nameMatch = text.match(medNamePattern) || text.match(numberedPattern);
+  // Pattern for numbered TAB/CAP entries (e.g., "1) TAB. ABCIXIMAB")
+  const numberedMedPattern = /(\d+\)?\s*)(TAB\.|Tab\.|CAP\.|Cap\.|SUSPENSION|Suspension|DROP|Drop|SYR\.|Syr\.|INJ\.|Inj\.)\s*([A-Za-z0-9\s-]+)(?:\s*\(([^)]+)\))?/i;
   
-  if (nameMatch) {
-    const medicineName = nameMatch[1].trim();
-    const composition = nameMatch[2] ? ` (${nameMatch[2]})` : '';
-    return `${medicineName}${composition}`;
+  // Pattern for medicine names without numbers (e.g., "ABCIXIMAB 10MG")
+  const simpleMedPattern = /(TAB\.|Tab\.|CAP\.|Cap\.|SUSPENSION|Suspension|DROP|Drop|SYR\.|Syr\.|INJ\.|Inj\.)?\s*([A-Za-z0-9\s-]+)(?:\s*\(([^)]+)\))?\s*(\d+\s*(?:mg|mcg|g|ml))?/i;
+  
+  // First try the specific numbered pattern
+  const numberedMatch = text.match(numberedMedPattern);
+  if (numberedMatch) {
+    const medicineType = numberedMatch[2];
+    const medicineName = numberedMatch[3].trim();
+    const composition = numberedMatch[4] ? ` (${numberedMatch[4]})` : '';
+    return `${medicineType} ${medicineName}${composition}`;
   }
   
-  // If specific patterns fail, try a more general approach
+  // Then try the simpler pattern
   const simpleMatch = text.match(simpleMedPattern);
   if (simpleMatch) {
-    const medicineName = simpleMatch[1].trim();
-    const composition = simpleMatch[2] ? ` (${simpleMatch[2]})` : '';
-    return `${medicineName}${composition}`;
+    const medicineType = simpleMatch[1] ? simpleMatch[1] + " " : "";
+    const medicineName = simpleMatch[2].trim();
+    const composition = simpleMatch[3] ? ` (${simpleMatch[3]})` : '';
+    const dosage = simpleMatch[4] ? ` ${simpleMatch[4]}` : '';
+    
+    // Check if the extracted name looks like a medicine (not just any random word)
+    if (medicineName.length > 2 && medicineType) {
+      return `${medicineType}${medicineName}${composition}${dosage}`.trim();
+    }
+  }
+  
+  // If all patterns fail but text contains medicine-related words, return the whole string
+  if (/TAB\.|Tab\.|CAP\.|Cap\.|TABLET|CAPSULE|mg|mcg|ml|SYRUP|SUSPENSION/i.test(text) && text.length > 5) {
+    return text.trim();
   }
   
   return null;
