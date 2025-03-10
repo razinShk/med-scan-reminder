@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import ImageUploader from "@/components/ImageUploader";
 import ReminderForm from "@/components/ReminderForm";
 import { scanPrescription } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Hardcoded API key
 const TOGETHER_API_KEY = "a60f1a37ec7f5f5af031531b8609f37efb53c94e7763aeb4f7820e2a434b5ab2";
@@ -17,6 +18,7 @@ export default function ScanPrescription() {
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleImageSelect = (file: File) => {
     if (isScanning) return; // Prevent starting a new scan while one is in progress
@@ -63,6 +65,12 @@ export default function ScanPrescription() {
     }
   };
 
+  const handleReminderCreated = () => {
+    // Invalidate reminders query to force a refetch
+    queryClient.invalidateQueries({ queryKey: ["reminders"] });
+    navigate("/reminders");
+  };
+
   return (
     <div className="min-h-screen pt-16 pb-6 px-4">
       <Header title="Scan Prescription" showBackButton />
@@ -87,7 +95,7 @@ export default function ScanPrescription() {
             )}
           </div>
         ) : (
-          <ReminderForm extractedText={extractedText} />
+          <ReminderForm extractedText={extractedText} onReminderCreated={handleReminderCreated} />
         )}
       </div>
     </div>

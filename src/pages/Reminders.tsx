@@ -3,11 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchReminders } from "@/lib/api";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Plus, Pill, CalendarClock, Loader2, PenLine } from "lucide-react";
 import ReminderCard from "@/components/ReminderCard";
+import { useEffect } from "react";
 
 export default function Reminders() {
+  const location = useLocation();
   const { data: reminders, isLoading, refetch } = useQuery({
     queryKey: ["reminders"],
     queryFn: fetchReminders,
@@ -16,6 +18,25 @@ export default function Reminders() {
   const handleReminderDelete = () => {
     refetch();
   };
+
+  // Refetch reminders when component mounts or when navigating back to this page
+  useEffect(() => {
+    // Always refetch when the component mounts
+    refetch();
+    
+    // Create a listener to detect when app regains focus
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refetch();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [refetch, location]);
 
   return (
     <div className="min-h-screen pt-16 pb-6 px-4">
