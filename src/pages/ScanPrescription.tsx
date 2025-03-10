@@ -2,13 +2,22 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import ImageUploader from "@/components/ImageUploader";
 import ReminderForm from "@/components/ReminderForm";
 import { scanPrescription } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
 
 // Hardcoded API key
 const TOGETHER_API_KEY = "a60f1a37ec7f5f5af031531b8609f37efb53c94e7763aeb4f7820e2a434b5ab2";
@@ -17,6 +26,7 @@ export default function ScanPrescription() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [showTextPreview, setShowTextPreview] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -95,7 +105,41 @@ export default function ScanPrescription() {
             )}
           </div>
         ) : (
-          <ReminderForm extractedText={extractedText} onReminderCreated={handleReminderCreated} />
+          <>
+            <div className="flex justify-end mb-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowTextPreview(true)}
+                className="flex items-center gap-1.5"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                View Raw Text
+              </Button>
+            </div>
+            <ReminderForm extractedText={extractedText} onReminderCreated={handleReminderCreated} />
+            
+            <Dialog open={showTextPreview} onOpenChange={setShowTextPreview}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Extracted Prescription Text</DialogTitle>
+                  <DialogDescription>
+                    This is the raw text extracted from your prescription image.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                  <Textarea 
+                    value={extractedText} 
+                    readOnly 
+                    className="min-h-[200px] font-mono text-sm"
+                  />
+                </div>
+                <DialogFooter>
+                  <Button onClick={() => setShowTextPreview(false)}>Close</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </>
         )}
       </div>
     </div>
