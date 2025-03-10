@@ -13,22 +13,16 @@ interface ImageUploaderProps {
 export default function ImageUploader({ onImageSelect }: ImageUploaderProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    // Prevent double processing
-    if (isProcessingImage) return;
     if (files && files.length > 0) {
-      setIsProcessingImage(true);
-      processFile(files[0]).finally(() => {
-        setIsProcessingImage(false);
-      });
+      processFile(files[0]);
     }
   };
 
-  const processFile = async (file: File) => {
+  const processFile = (file: File) => {
     // Check if file is an image
     if (!file.type.match('image.*')) {
       toast.error('Please select an image file');
@@ -65,14 +59,8 @@ export default function ImageUploader({ onImageSelect }: ImageUploaderProps) {
     e.preventDefault();
     setIsDragging(false);
     
-    // Prevent double processing
-    if (isProcessingImage) return;
-    
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setIsProcessingImage(true);
-      processFile(e.dataTransfer.files[0]).finally(() => {
-        setIsProcessingImage(false);
-      });
+      processFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -83,9 +71,7 @@ export default function ImageUploader({ onImageSelect }: ImageUploaderProps) {
     }
   };
 
-  const triggerFileInput = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
 
@@ -102,6 +88,7 @@ export default function ImageUploader({ onImageSelect }: ImageUploaderProps) {
       
       {!selectedImage ? (
         <div
+          onClick={triggerFileInput}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}

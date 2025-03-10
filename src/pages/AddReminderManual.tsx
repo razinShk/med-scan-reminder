@@ -14,12 +14,10 @@ import { type Reminder } from "@/lib/types";
 import { addHours } from "date-fns";
 import { checkRemindersNow } from "@/lib/reminderScheduler";
 import { requestNotificationPermission } from "@/lib/notificationService";
-import { useQueryClient } from "@tanstack/react-query";
 
 export default function AddReminderManual() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const queryClient = useQueryClient();
   
   // Form state
   const [medicineName, setMedicineName] = useState("");
@@ -61,9 +59,6 @@ export default function AddReminderManual() {
       
       await createReminder(reminderData);
       toast.success("Reminder created successfully");
-      
-      // Invalidate reminders query to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ["reminders"] });
       
       // Check for reminders immediately after creating a new one
       await checkRemindersNow();
