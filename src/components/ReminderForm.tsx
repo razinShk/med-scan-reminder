@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -10,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { createReminders } from "@/lib/api";
 import { z } from "zod";
 import EditReminderDialog from "@/components/EditReminderDialog";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   Dialog,
   DialogContent,
@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import { Reminder } from "@/lib/types";
 
-// Define the schema for a reminder
 const reminderSchema = z.object({
   medicineName: z.string().min(1, "Medicine name is required"),
   dosage: z.string().min(1, "Dosage is required"),
@@ -30,10 +29,8 @@ const reminderSchema = z.object({
   notes: z.string().nullable(),
 });
 
-// Define the type for reminder input
 type ReminderInput = z.infer<typeof reminderSchema>;
 
-// Define the type for medicine details
 interface MedicineDetails {
   name: string;
   dosage: string;
@@ -42,18 +39,16 @@ interface MedicineDetails {
   notes?: string;
 }
 
-// Function to extract medicine details from text
 function extractMedicineDetails(text: string): MedicineDetails[] {
   const medicines: MedicineDetails[] = [];
   const lines: string[] = text.split("\n");
 
-  // Simplified header detection
   const headerPatterns: RegExp[] = [
-    /^\s*\|[\s-]*\|/,  // Table separator lines
-    /\|\s*Medicine\s*Name\s*\|/i,  // Medicine Name header
-    /\|\s*Dosage\s*\|/i,  // Dosage header
-    /\|\s*Duration\s*\|/i,  // Duration header
-    /\|\s*Notes?\s*\|/i  // Notes header
+    /^\s*\|[\s-]*\|/, 
+    /\|\s*Medicine\s*Name\s*\|/i, 
+    /\|\s*Dosage\s*\|/i, 
+    /\|\s*Duration\s*\|/i, 
+    /\|\s*Notes?\s*\|/i
   ];
 
   for (const line of lines) {
@@ -64,11 +59,9 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
     if (line.includes("|")) {
       const parts = line.split("|").map(part => part.trim());
 
-      // Enhanced medicine name pattern matching
       const medNamePattern = /(?:^\d+\)?\s*)?(?:med\s+)?(?:TAB\.|Tab\.|CAP\.|Cap\.|SUSPENSION|Suspension|DROP|Drop)\.?\s+([^|(]+)(?:\s*\(([^)]+)\))?/i;
       const numberedPattern = /^\d+\)\s*(?:TAB\.|CAP\.|SUSPENSION|DROP)\.\s+([^|(]+)(?:\s*\(([^)]+)\))?/i;
 
-      // Look for medicine info in the first two columns
       const medInfo = parts[0].toLowerCase().includes('med') || /tab\.|cap\.|suspension|drop/i.test(parts[0]) 
         ? parts[0] 
         : parts[1];
@@ -80,12 +73,10 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
         const composition = nameMatch[2] ? ` (${nameMatch[2]})` : '';
         const fullName = `${medicineName}${composition}`;
 
-        // Get dosage info
         const dosageInfo = parts.find(part => 
           /Morning|Night|Daily|Hourly|units|ml|-/i.test(part)
         ) || "1 unit daily";
 
-        // Extract frequency
         let frequency = "once daily";
         if (dosageInfo.toLowerCase().includes("morning") && dosageInfo.toLowerCase().includes("night")) {
           frequency = "twice daily";
@@ -94,8 +85,7 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
           frequency = hours ? `every ${hours} hours` : "once daily";
         }
 
-        // Extract duration
-        let duration = 7; // Default duration of 7 days
+        let duration = 7;
         const durationMatch = parts.find(part => /days?|weeks?/i.test(part));
         if (durationMatch) {
           const daysMatch = durationMatch.match(/(\d+)\s*days?/i);
@@ -121,11 +111,17 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
   return medicines;
 }
 
-export default function ReminderForm({ extractedText }: { extractedText: string }) {
+type ReminderFormProps = {
+  extractedText: string;
+  onReminderCreated?: () => void;
+};
+
+export default function ReminderForm({ extractedText, onReminderCreated }: ReminderFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const [autoCreateComplete, setAutoCreateComplete] = useState(false);
   const createRemindersRef = useRef<boolean>(false);
+  const queryClient = useQueryClient();
   const [editingMedicine, setEditingMedicine] = useState<{
     index: number;
     details: MedicineDetails;
@@ -147,12 +143,12 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
       case 'thrice daily':
         return 8;
       default:
-        return 24; // Default to once daily
+        return 24;
     }
   };
 
   const createRemindersHandler = async () => {
-    if (createRemindersRef.current) return; // Prevent multiple submissions
+    if (createRemindersRef.current) return;
     createRemindersRef.current = true;
     
     setIsSubmitting(true);
@@ -171,24 +167,29 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
         };
       });
 
-      // Log before creating reminders
       console.log("Creating reminders with data:", reminderInputs);
 
       await createReminders(reminderInputs);
       
       toast.success("Reminders created successfully");
-      navigate("/reminders");
+      
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
+      
+      if (onReminderCreated) {
+        onReminderCreated();
+      } else {
+        navigate("/reminders");
+      }
     } catch (error) {
       console.error('Error creating reminders:', error);
       toast.error(error instanceof Error ? error.message : "Failed to create reminders. Please try again.");
-      createRemindersRef.current = false; // Reset to allow retry
+      createRemindersRef.current = false;
     } finally {
       setIsSubmitting(false);
       setAutoCreateComplete(true);
     }
   };
 
-  // Handle medicine edit
   const handleEditMedicine = (index: number) => {
     const medicine = medicines[index];
     const frequencyHours = getFrequencyHours(medicine.frequency);
@@ -210,7 +211,6 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
     setIsEditDialogOpen(true);
   };
 
-  // Auto-create reminders when component mounts
   useEffect(() => {
     if (medicines.length > 0 && !autoCreateComplete && !createRemindersRef.current) {
       createRemindersHandler();
@@ -265,7 +265,6 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
         </Button>
       )}
       
-      {/* Edit Dialog for medicine details */}
       {editingMedicine && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="sm:max-w-[425px] rounded-xl">
@@ -283,7 +282,6 @@ export default function ReminderForm({ extractedText }: { extractedText: string 
               open={isEditDialogOpen}
               onOpenChange={setIsEditDialogOpen}
               onReminderUpdated={() => {
-                // This is just pre-creation editing, so we'll just close the dialog
                 setIsEditDialogOpen(false);
                 setEditingMedicine(null);
               }}
