@@ -83,14 +83,22 @@ export async function processPrescriptionImage({ file, apiKey }: { file: File; a
     // Convert image file to Base64
     const finalImageUrl = await encodeImage(processedFile);
 
-    const systemPrompt = `Convert the provided image into Markdown format. Ensure that all content from the page is included, such as headers, footers, subtexts, images (with alt text if possible), tables, and any other elements.
-    create a reminder card for each medicine with all its detail.
-    
+    const systemPrompt = `Extract all medicine information from this prescription image and format it clearly.
+
     Requirements:
     
-    - Output Only Markdown: Return solely the Markdown content without any additional explanations or comments.
-    - No Delimiters: Do not use code fences or delimiters like \`\`\`markdown.
-    - Complete Content: Do not omit any part of the page, including headers, footers, and subtext.
+    1. Focus on identifying:
+       - Medicine names (including tablets, capsules, syrups, etc.)
+       - Dosage information (morning, night, after food, etc.)
+       - Duration of treatment
+       - Any special instructions
+    
+    2. Format the information in a clear, structured way with Markdown, including:
+       - Use a table for medicine details if possible
+       - Include all readable text from the prescription
+       - Preserve the original structure where relevant
+    
+    3. Be comprehensive - don't omit any medicine information
     `;
 
     // Prepare request with timeout
