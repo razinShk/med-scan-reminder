@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -15,20 +14,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 const TOGETHER_API_KEY = "a60f1a37ec7f5f5af031531b8609f37efb53c94e7763aeb4f7820e2a434b5ab2";
 
 // Sample reminder card data for fallback
-const SAMPLE_REMINDER_CARDS = `**PREXT (100)**
+const SAMPLE_REMINDER_CARDS = `**MEDICINE_NAME (STRENGTH)**
 
-* **Dosage**: 1-0-1 tablet
-* **Duration**: One month
-
-**CLOFRANIL (25)**
-
-* **Dosage**: 1-0-0 tablet
-* **Duration**: One month
-
-**CIZODON (MDP-5)**
-
-* **Dosage**: 1-0-0 tablet
-* **Duration**: One month`;
+* **TAB. ABCIXIMAB**
+	+ Dosage: 1 Morning
+	+ Duration: 8 Days (Tot: 8 Tab)
+* **TAB. VOMILAST**
+	+ Dosage: 1 Morning, 1 Night (After Food)
+	+ Duration: 8 Days (Tot: 16 Tab)
+* **CAP. ZOCLAR 500**
+	+ Dosage: 1 Morning
+	+ Duration: 3 Days (Tot: 3 Cap)
+* **CLARITHROMYCIN IP 500MG**
+	+ Dosage: 1 Night
+	+ Duration: 4 Days (Tot: 4 Tab)
+* **TAB. GESTAKIND 10/SR**
+	+ Dosage: 1-0-1
+	+ Duration: 4 Days (Tot: 4 Tab)
+* **ISOXSPRINE 10 MG**
+	+ Dosage: 1-0-1
+	+ Duration: 4 Days (Tot: 8 Tab)`;
 
 export default function ScanPrescription() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);

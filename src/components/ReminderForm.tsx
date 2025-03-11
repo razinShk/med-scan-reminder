@@ -43,36 +43,42 @@ interface MedicineDetails {
 function extractMedicineDetails(text: string): MedicineDetails[] {
   const medicines: MedicineDetails[] = [];
   
-  // First, try to extract using the reminder card format
-  const reminderCardRegex = /\*\*([^*]+?)\*\*(?:\s*\(([^)]+)\))?\s*\n\s*\*\s*\*\*Dosage\*\*:\s*([^\n]+)\n\s*\*\s*\*\*Duration\*\*:\s*([^\n]+)/gi;
+  // Try to extract medicines using different formats
+  
+  // Format 1: The format with "* **TAB. MEDICINE_NAME**" and indented dosage/duration with +
+  const format1Regex = /\*\s+\*\*([^*]+?)\*\*\s*[\r\n]\s*\+\s+Dosage:\s*([^\r\n]+)[\r\n]\s*\+\s+Duration:\s*([^\r\n]+)/gi;
+  
+  // Format 2: Original format with **MEDICINE_NAME** and * **Dosage**
+  const format2Regex = /\*\*([^*]+?)\*\*(?:\s*\(([^)]+)\))?\s*\n\s*\*\s*\*\*Dosage\*\*:\s*([^\n]+)\n\s*\*\s*\*\*Duration\*\*:\s*([^\n]+)/gi;
   
   let match;
   const fullText = text;
   
-  // Try to match the reminder card format first
-  while ((match = reminderCardRegex.exec(fullText)) !== null) {
+  // Try Format 1 first (new format)
+  while ((match = format1Regex.exec(fullText)) !== null) {
     const medicineName = match[1].trim();
-    const strength = match[2] ? ` (${match[2].trim()})` : '';
-    const dosage = match[3].trim();
-    const durationText = match[4].trim();
+    const dosage = match[2].trim();
+    const durationText = match[3].trim();
     
     let duration = 7; // Default duration
     
-    // Parse duration text
-    if (durationText.toLowerCase().includes('month')) {
+    // Parse duration text - now looking for formats like "8 Days (Tot: 8 Tab)"
+    const daysMatch = durationText.match(/(\d+)\s*Days?/i);
+    const monthMatch = durationText.toLowerCase().includes('month');
+    const weeksMatch = durationText.match(/(\d+)\s*weeks?/i);
+    
+    if (daysMatch) {
+      duration = parseInt(daysMatch[1]);
+    } else if (monthMatch) {
       duration = 30;
-    } else if (durationText.toLowerCase().includes('week')) {
-      const weekMatch = durationText.match(/(\d+)\s*weeks?/i);
-      duration = weekMatch ? parseInt(weekMatch[1]) * 7 : 7;
-    } else if (durationText.toLowerCase().includes('day')) {
-      const dayMatch = durationText.match(/(\d+)\s*days?/i);
-      duration = dayMatch ? parseInt(dayMatch[1]) : 7;
-    } else if (durationText.toLowerCase().includes('one month')) {
-      duration = 30;
+    } else if (weeksMatch) {
+      duration = parseInt(weeksMatch[1]) * 7;
     }
     
-    // Determine frequency from dosage pattern
+    // Determine frequency based on dosage pattern
     let frequency = "once daily";
+    
+    // Check for patterns like "1-0-1"
     const dosagePattern = dosage.match(/(\d+)-(\d+)-(\d+)/);
     
     if (dosagePattern) {
@@ -89,91 +95,149 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
       } else {
         frequency = "once daily";
       }
+    } 
+    // Check for patterns like "1 Morning" or "1 Morning, 1 Night"
+    else if (dosage.toLowerCase().includes('morning') && dosage.toLowerCase().includes('night')) {
+      frequency = "twice daily";
+    } else if (dosage.toLowerCase().includes('morning')) {
+      frequency = "once daily"; // Morning only
+    } else if (dosage.toLowerCase().includes('night') || dosage.toLowerCase().includes('evening')) {
+      frequency = "once daily"; // Night only
     }
     
     medicines.push({
-      name: medicineName + strength,
+      name: medicineName,
       dosage: dosage,
       frequency: frequency,
       duration: duration,
-      notes: ''
+      notes: durationText // Store full duration text in notes for reference
     });
   }
   
-  // If reminder card format worked, return the medicines
-  if (medicines.length > 0) {
-    return medicines;
+  // Try Format 2 if no medicines found with Format 1
+  if (medicines.length === 0) {
+    while ((match = format2Regex.exec(fullText)) !== null) {
+      const medicineName = match[1].trim();
+      const strength = match[2] ? ` (${match[2].trim()})` : '';
+      const dosage = match[3].trim();
+      const durationText = match[4].trim();
+      
+      let duration = 7; // Default duration
+      
+      // Parse duration text
+      if (durationText.toLowerCase().includes('month')) {
+        duration = 30;
+      } else if (durationText.toLowerCase().includes('week')) {
+        const weekMatch = durationText.match(/(\d+)\s*weeks?/i);
+        duration = weekMatch ? parseInt(weekMatch[1]) * 7 : 7;
+      } else if (durationText.toLowerCase().includes('day')) {
+        const dayMatch = durationText.match(/(\d+)\s*days?/i);
+        duration = dayMatch ? parseInt(dayMatch[1]) : 7;
+      } else if (durationText.toLowerCase().includes('one month')) {
+        duration = 30;
+      }
+      
+      // Determine frequency from dosage pattern
+      let frequency = "once daily";
+      const dosagePattern = dosage.match(/(\d+)-(\d+)-(\d+)/);
+      
+      if (dosagePattern) {
+        const morning = parseInt(dosagePattern[1]) > 0;
+        const afternoon = parseInt(dosagePattern[2]) > 0;
+        const night = parseInt(dosagePattern[3]) > 0;
+        
+        const timesPerDay = [morning, afternoon, night].filter(Boolean).length;
+        
+        if (timesPerDay === 3) {
+          frequency = "thrice daily";
+        } else if (timesPerDay === 2) {
+          frequency = "twice daily";
+        } else {
+          frequency = "once daily";
+        }
+      }
+      
+      medicines.push({
+        name: medicineName + strength,
+        dosage: dosage,
+        frequency: frequency,
+        duration: duration,
+        notes: ''
+      });
+    }
   }
   
-  // If no matches found with reminder card format, try fallback to parse table or other formats
-  const lines: string[] = text.split("\n");
-  
-  const headerPatterns: RegExp[] = [
-    /^\s*\|[\s-]*\|/, 
-    /\|\s*Medicine\s*Name\s*\|/i, 
-    /\|\s*Dosage\s*\|/i, 
-    /\|\s*Duration\s*\|/i, 
-    /\|\s*Notes?\s*\|/i
-  ];
+  // If no matches found with either format, try to parse table or other formats (from original code)
+  if (medicines.length === 0) {
+    const lines: string[] = text.split("\n");
+    
+    const headerPatterns: RegExp[] = [
+      /^\s*\|[\s-]*\|/, 
+      /\|\s*Medicine\s*Name\s*\|/i, 
+      /\|\s*Dosage\s*\|/i, 
+      /\|\s*Duration\s*\|/i, 
+      /\|\s*Notes?\s*\|/i
+    ];
 
-  // Try to find table-style data or other formats
-  for (const line of lines) {
-    if (!line.trim() || headerPatterns.some(pattern => pattern.test(line))) {
-      continue;
-    }
+    // Try to find table-style data or other formats
+    for (const line of lines) {
+      if (!line.trim() || headerPatterns.some(pattern => pattern.test(line))) {
+        continue;
+      }
 
-    if (line.includes("|")) {
-      const parts = line.split("|").map(part => part.trim());
+      if (line.includes("|")) {
+        const parts = line.split("|").map(part => part.trim());
 
-      const medNamePattern = /(?:^\d+\)?\s*)?(?:med\s+)?(?:TAB\.|Tab\.|CAP\.|Cap\.|SUSPENSION|Suspension|DROP|Drop)\.?\s+([^|(]+)(?:\s*\(([^)]+)\))?/i;
-      const numberedPattern = /^\d+\)\s*(?:TAB\.|CAP\.|SUSPENSION|DROP)\.\s+([^|(]+)(?:\s*\(([^)]+)\))?/i;
+        const medNamePattern = /(?:^\d+\)?\s*)?(?:med\s+)?(?:TAB\.|Tab\.|CAP\.|Cap\.|SUSPENSION|Suspension|DROP|Drop)\.?\s+([^|(]+)(?:\s*\(([^)]+)\))?/i;
+        const numberedPattern = /^\d+\)\s*(?:TAB\.|CAP\.|SUSPENSION|DROP)\.\s+([^|(]+)(?:\s*\(([^)]+)\))?/i;
 
-      const medInfo = parts[0].toLowerCase().includes('med') || /tab\.|cap\.|suspension|drop/i.test(parts[0]) 
-        ? parts[0] 
-        : parts[1];
+        const medInfo = parts[0].toLowerCase().includes('med') || /tab\.|cap\.|suspension|drop/i.test(parts[0]) 
+          ? parts[0] 
+          : parts[1];
 
-      const nameMatch = medInfo.match(medNamePattern) || medInfo.match(numberedPattern);
+        const nameMatch = medInfo.match(medNamePattern) || medInfo.match(numberedPattern);
 
-      if (nameMatch) {
-        const medicineName = nameMatch[1].trim();
-        const composition = nameMatch[2] ? ` (${nameMatch[2]})` : '';
-        const fullName = `${medicineName}${composition}`;
+        if (nameMatch) {
+          const medicineName = nameMatch[1].trim();
+          const composition = nameMatch[2] ? ` (${nameMatch[2]})` : '';
+          const fullName = `${medicineName}${composition}`;
 
-        const dosageInfo = parts.find(part => 
-          /Morning|Night|Daily|Hourly|units|ml|-/i.test(part)
-        ) || "1 unit daily";
+          const dosageInfo = parts.find(part => 
+            /Morning|Night|Daily|Hourly|units|ml|-/i.test(part)
+          ) || "1 unit daily";
 
-        let frequency = "once daily";
-        if (dosageInfo.toLowerCase().includes("morning") && dosageInfo.toLowerCase().includes("night")) {
-          frequency = "twice daily";
-        } else if (dosageInfo.match(/(\d+)\s*hourly/i)) {
-          const hours = dosageInfo.match(/(\d+)\s*hourly/i)?.[1];
-          frequency = hours ? `every ${hours} hours` : "once daily";
-        }
-
-        let duration = 7;
-        const durationMatch = parts.find(part => /days?|weeks?|month/i.test(part));
-        if (durationMatch) {
-          const daysMatch = durationMatch.match(/(\d+)\s*days?/i);
-          const weeksMatch = durationMatch.match(/(\d+)\s*weeks?/i);
-          const monthMatch = durationMatch.match(/(\d+)\s*month/i) || durationMatch.match(/one\s*month/i);
-          
-          if (daysMatch) {
-            duration = parseInt(daysMatch[1]);
-          } else if (weeksMatch) {
-            duration = parseInt(weeksMatch[1]) * 7;
-          } else if (monthMatch) {
-            duration = 30;
+          let frequency = "once daily";
+          if (dosageInfo.toLowerCase().includes("morning") && dosageInfo.toLowerCase().includes("night")) {
+            frequency = "twice daily";
+          } else if (dosageInfo.match(/(\d+)\s*hourly/i)) {
+            const hours = dosageInfo.match(/(\d+)\s*hourly/i)?.[1];
+            frequency = hours ? `every ${hours} hours` : "once daily";
           }
-        }
 
-        medicines.push({
-          name: fullName,
-          dosage: dosageInfo,
-          frequency,
-          duration,
-          notes: ''
-        });
+          let duration = 7;
+          const durationMatch = parts.find(part => /days?|weeks?|month/i.test(part));
+          if (durationMatch) {
+            const daysMatch = durationMatch.match(/(\d+)\s*days?/i);
+            const weeksMatch = durationMatch.match(/(\d+)\s*weeks?/i);
+            const monthMatch = durationMatch.match(/(\d+)\s*month/i) || durationMatch.match(/one\s*month/i);
+            
+            if (daysMatch) {
+              duration = parseInt(daysMatch[1]);
+            } else if (weeksMatch) {
+              duration = parseInt(weeksMatch[1]) * 7;
+            } else if (monthMatch) {
+              duration = 30;
+            }
+          }
+
+          medicines.push({
+            name: fullName,
+            dosage: dosageInfo,
+            frequency,
+            duration,
+            notes: ''
+          });
+        }
       }
     }
   }

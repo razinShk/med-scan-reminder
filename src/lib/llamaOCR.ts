@@ -84,24 +84,29 @@ export async function processPrescriptionImage({ file, apiKey }: { file: File; a
     // Convert image file to Base64
     const finalImageUrl = await encodeImage(processedFile);
 
-    const systemPrompt = `Extract medicine information from this prescription image and format it as REMINDER CARDS in the exact format shown below:
+    const systemPrompt = `Extract medicine information from this prescription image and format it as REMINDER CARDS in one of the following formats:
 
+FORMAT 1:
 **MEDICINE_NAME (STRENGTH)**
 
 * **Dosage**: DOSAGE_INSTRUCTION
 * **Duration**: DURATION_PERIOD
 
-For each medicine, show:
-1. Medicine name and strength (if available) in bold
-2. Dosage instructions (including timing like "1-0-1" which means morning-afternoon-night where 1=yes, 0=no)
-3. Duration (in days, weeks, or months)
+FORMAT 2:
+**MEDICINE_NAME (STRENGTH)**
+
+* **TAB. MEDICINE_NAME**
+	+ Dosage: DOSAGE_INSTRUCTION (e.g., "1 Morning" or "1-0-1")
+	+ Duration: DURATION_PERIOD (Tot: TOTAL_TABLETS Tab/Cap)
 
 For dosage format like "1-0-1", this means:
 - First number: Morning dose (1 = take, 0 = don't take)
 - Second number: Afternoon dose
 - Third number: Night/evening dose
 
-Multiple cards should be separated by a blank line. DO NOT include any explanatory text or other formatting.
+Other dosage formats might include "1 Morning, 1 Night" or "1 Morning".
+
+Include all medicine details with their complete dosage instructions, strength, and duration. Maintain the exact structure of one of the above formats.
 `;
 
     // Prepare request with timeout
