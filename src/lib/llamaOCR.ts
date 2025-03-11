@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 // Helper function to resize an image to reduce its file size
@@ -173,7 +172,10 @@ Multiple cards should be separated by a blank line. DO NOT include any explanato
     
     // Provide more specific error messages
     if (error instanceof Error) {
-      if (error.message.includes("API key")) {
+      if (error.message.includes("402")) {
+        toast.error("API usage limit reached. Try again later or use sample data.");
+        throw error; // Rethrow to handle in the component
+      } else if (error.message.includes("API key")) {
         toast.error("API authentication failed. Please try again later.");
       } else if (error.message.includes("timed out")) {
         toast.error("Processing took too long. Try with a clearer or smaller image.");

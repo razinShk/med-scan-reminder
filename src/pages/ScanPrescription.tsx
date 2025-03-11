@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, FileText } from "lucide-react";
+import { Loader2, FileText, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import ImageUploader from "@/components/ImageUploader";
@@ -14,19 +14,37 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 // Hardcoded API key
 const TOGETHER_API_KEY = "a60f1a37ec7f5f5af031531b8609f37efb53c94e7763aeb4f7820e2a434b5ab2";
 
+// Sample reminder card data for fallback
+const SAMPLE_REMINDER_CARDS = `**PREXT (100)**
+
+* **Dosage**: 1-0-1 tablet
+* **Duration**: One month
+
+**CLOFRANIL (25)**
+
+* **Dosage**: 1-0-0 tablet
+* **Duration**: One month
+
+**CIZODON (MDP-5)**
+
+* **Dosage**: 1-0-0 tablet
+* **Duration**: One month`;
+
 export default function ScanPrescription() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [showTextPreview, setShowTextPreview] = useState(false);
+  const [apiError, setApiError] = useState<boolean>(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const handleImageSelect = (file: File) => {
     if (isScanning) return; // Prevent starting a new scan while one is in progress
     setSelectedImage(file);
-    // Reset previous extraction
+    // Reset previous extraction and error state
     setExtractedText(null);
+    setApiError(false);
   };
 
   // Watch for changes to selectedImage and start scanning
@@ -43,6 +61,8 @@ export default function ScanPrescription() {
     }
 
     setIsScanning(true);
+    setApiError(false);
+    
     try {
       // Check file size - mobile browsers often have very large image files
       const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
@@ -61,10 +81,24 @@ export default function ScanPrescription() {
       setExtractedText(text);
     } catch (error) {
       console.error("Scan failed:", error);
-      toast.error("Failed to scan prescription. Please try again with a clearer image.");
+      
+      // Check if it's a 402 error (payment required)
+      if (error instanceof Error && error.message.includes("402")) {
+        setApiError(true);
+        toast.error("API limit reached. Using sample data instead.", {
+          duration: 5000,
+        });
+      } else {
+        toast.error("Failed to scan prescription. Please try again with a clearer image.");
+      }
     } finally {
       setIsScanning(false);
     }
+  };
+
+  const handleUseSampleData = () => {
+    setExtractedText(SAMPLE_REMINDER_CARDS);
+    setApiError(false);
   };
 
   const handleReminderCreated = () => {
@@ -93,6 +127,22 @@ export default function ScanPrescription() {
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
                 <p className="text-muted-foreground">Scanning prescription...</p>
+              </div>
+            )}
+
+            {apiError && (
+              <div className="flex flex-col items-center justify-center py-4 space-y-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-700 text-sm">
+                  <p className="font-medium">API limit reached</p>
+                  <p className="mt-1">The scanning service is currently unavailable due to API limits.</p>
+                </div>
+                <Button 
+                  onClick={handleUseSampleData}
+                  className="w-full"
+                >
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Use Sample Reminder Data
+                </Button>
               </div>
             )}
           </div>

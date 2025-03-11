@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -41,15 +42,15 @@ interface MedicineDetails {
 
 function extractMedicineDetails(text: string): MedicineDetails[] {
   const medicines: MedicineDetails[] = [];
-  const lines: string[] = text.split("\n");
-
-  const reminderCardRegex = /\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?\s*\n\s*\*\s*\*\*Dosage\*\*:\s*([^\n]+)\n\s*\*\s*\*\*Duration\*\*:\s*([^\n]+)/gi;
+  
+  // First, try to extract using the reminder card format
+  const reminderCardRegex = /\*\*([^*]+?)\*\*(?:\s*\(([^)]+)\))?\s*\n\s*\*\s*\*\*Dosage\*\*:\s*([^\n]+)\n\s*\*\s*\*\*Duration\*\*:\s*([^\n]+)/gi;
+  
   let match;
-  const cardMatches = [];
+  const fullText = text;
   
-  let textCopy = text;
-  
-  while ((match = reminderCardRegex.exec(textCopy)) !== null) {
+  // Try to match the reminder card format first
+  while ((match = reminderCardRegex.exec(fullText)) !== null) {
     const medicineName = match[1].trim();
     const strength = match[2] ? ` (${match[2].trim()})` : '';
     const dosage = match[3].trim();
@@ -57,6 +58,7 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
     
     let duration = 7; // Default duration
     
+    // Parse duration text
     if (durationText.toLowerCase().includes('month')) {
       duration = 30;
     } else if (durationText.toLowerCase().includes('week')) {
@@ -65,8 +67,11 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
     } else if (durationText.toLowerCase().includes('day')) {
       const dayMatch = durationText.match(/(\d+)\s*days?/i);
       duration = dayMatch ? parseInt(dayMatch[1]) : 7;
+    } else if (durationText.toLowerCase().includes('one month')) {
+      duration = 30;
     }
     
+    // Determine frequency from dosage pattern
     let frequency = "once daily";
     const dosagePattern = dosage.match(/(\d+)-(\d+)-(\d+)/);
     
@@ -93,13 +98,15 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
       duration: duration,
       notes: ''
     });
-    
-    cardMatches.push(match[0]);
   }
   
+  // If reminder card format worked, return the medicines
   if (medicines.length > 0) {
     return medicines;
   }
+  
+  // If no matches found with reminder card format, try fallback to parse table or other formats
+  const lines: string[] = text.split("\n");
   
   const headerPatterns: RegExp[] = [
     /^\s*\|[\s-]*\|/, 
@@ -109,6 +116,7 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
     /\|\s*Notes?\s*\|/i
   ];
 
+  // Try to find table-style data or other formats
   for (const line of lines) {
     if (!line.trim() || headerPatterns.some(pattern => pattern.test(line))) {
       continue;
@@ -144,14 +152,18 @@ function extractMedicineDetails(text: string): MedicineDetails[] {
         }
 
         let duration = 7;
-        const durationMatch = parts.find(part => /days?|weeks?/i.test(part));
+        const durationMatch = parts.find(part => /days?|weeks?|month/i.test(part));
         if (durationMatch) {
           const daysMatch = durationMatch.match(/(\d+)\s*days?/i);
           const weeksMatch = durationMatch.match(/(\d+)\s*weeks?/i);
+          const monthMatch = durationMatch.match(/(\d+)\s*month/i) || durationMatch.match(/one\s*month/i);
+          
           if (daysMatch) {
             duration = parseInt(daysMatch[1]);
           } else if (weeksMatch) {
             duration = parseInt(weeksMatch[1]) * 7;
+          } else if (monthMatch) {
+            duration = 30;
           }
         }
 
