@@ -14,26 +14,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 const TOGETHER_API_KEY = "a60f1a37ec7f5f5af031531b8609f37efb53c94e7763aeb4f7820e2a434b5ab2";
 
 // Sample reminder card data for fallback
-const SAMPLE_REMINDER_CARDS = `**MEDICINE_NAME (STRENGTH)**
-
-* **TAB. ABCIXIMAB**
-	+ Dosage: 1 Morning
-	+ Duration: 8 Days (Tot: 8 Tab)
-* **TAB. VOMILAST**
-	+ Dosage: 1 Morning, 1 Night (After Food)
-	+ Duration: 8 Days (Tot: 16 Tab)
-* **CAP. ZOCLAR 500**
-	+ Dosage: 1 Morning
-	+ Duration: 3 Days (Tot: 3 Cap)
-* **CLARITHROMYCIN IP 500MG**
-	+ Dosage: 1 Night
-	+ Duration: 4 Days (Tot: 4 Tab)
-* **TAB. GESTAKIND 10/SR**
-	+ Dosage: 1-0-1
-	+ Duration: 4 Days (Tot: 4 Tab)
-* **ISOXSPRINE 10 MG**
-	+ Dosage: 1-0-1
-	+ Duration: 4 Days (Tot: 8 Tab)`;
+const SAMPLE_REMINDER_CARDS = `FREXT (100 mg): 1 tablet, once daily after breakfast, for 1 month.
+CLOFRANIL (25 mg): 1 tablet, once daily at night, for 1 month.
+SIZODON (MD 0.5): 1 tablet, once daily at night, for 1 month.
+ANXIPAR (0.25 mg): 1 tablet, once daily in morning, for 15 days.
+NEXITO (10 mg): 1 tablet, once daily at night, for 1 month.
+VIBACT (550 mg): 1 tablet, twice daily after meals, for 5 days.`;
 
 export default function ScanPrescription() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);

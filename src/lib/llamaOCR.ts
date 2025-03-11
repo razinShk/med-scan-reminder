@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 // Helper function to resize an image to reduce its file size
@@ -78,36 +77,34 @@ export async function processPrescriptionImage({ file, apiKey }: { file: File; a
       }
     }
 
-    // Updated model to use Llama-Vision-Free instead of Llama-3.2-90B-Vision-Instruct-Turbo
+    // Updated model to use Llama-Vision-Free
     const visionLLM = "meta-llama/Llama-Vision-Free";
     
     // Convert image file to Base64
     const finalImageUrl = await encodeImage(processedFile);
 
-    const systemPrompt = `Extract medicine information from this prescription image and format it as REMINDER CARDS in one of the following formats:
+    const systemPrompt = `Extract and format only medicine details from prescription images in a structured format.
 
-FORMAT 1:
-**MEDICINE_NAME (STRENGTH)**
+Extract the following medicine details from the provided prescription image:
+- Medicine Name
+- Dosage (e.g., 100 mg, 25 mg)
+- Frequency (e.g., once daily, twice daily)
+- Timing (e.g., morning, afternoon, night)
+- Special Instructions (e.g., before/after food)
+- Duration (e.g., for 7 days, for 1 month)
 
-* **Dosage**: DOSAGE_INSTRUCTION
-* **Duration**: DURATION_PERIOD
+Format Output as:
+[Medicine Name] ([Dosage]): [Frequency], [Timing], [Special Instructions], for [Duration].
 
-FORMAT 2:
-**MEDICINE_NAME (STRENGTH)**
+Example Output:
+FREXT (100 mg): 1 tablet, once daily after breakfast, for 1 month.
+CLOFRANIL (25 mg): 1 tablet, once daily at night, for 1 month.
+SIZODON (MD 0.5): 1 tablet, once daily at night, for 1 month.
 
-* **TAB. MEDICINE_NAME**
-	+ Dosage: DOSAGE_INSTRUCTION (e.g., "1 Morning" or "1-0-1")
-	+ Duration: DURATION_PERIOD (Tot: TOTAL_TABLETS Tab/Cap)
-
-For dosage format like "1-0-1", this means:
-- First number: Morning dose (1 = take, 0 = don't take)
-- Second number: Afternoon dose
-- Third number: Night/evening dose
-
-Other dosage formats might include "1 Morning, 1 Night" or "1 Morning".
-
-Include all medicine details with their complete dosage instructions, strength, and duration. Maintain the exact structure of one of the above formats.
-`;
+⚠️ Notes:
+- Ignore patient details, diagnosis, and doctor/hospital info.
+- Ensure output is clean and follows the structured format.
+- If any information is missing, skip it without adding assumptions.`;
 
     // Prepare request with timeout
     const requestBody = {
