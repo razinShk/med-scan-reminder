@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 
 // Helper function to resize an image to reduce its file size
@@ -77,7 +78,8 @@ export async function processPrescriptionImage({ file, apiKey }: { file: File; a
       }
     }
 
-    const visionLLM = "meta-llama/Llama-3.2-90B-Vision-Instruct-Turbo";
+    // Updated model to use Llama-Vision-Free instead of Llama-3.2-90B-Vision-Instruct-Turbo
+    const visionLLM = "meta-llama/Llama-Vision-Free";
     
     // Convert image file to Base64
     const finalImageUrl = await encodeImage(processedFile);
