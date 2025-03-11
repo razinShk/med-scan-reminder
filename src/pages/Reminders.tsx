@@ -1,12 +1,23 @@
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchReminders } from "@/lib/api";
+import { fetchReminders, deleteAllReminders } from "@/lib/api";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "react-router-dom";
-import { Plus, Pill, CalendarClock, Loader2, PenLine } from "lucide-react";
+import { Plus, Pill, CalendarClock, Loader2, PenLine, Trash2 } from "lucide-react";
 import ReminderCard from "@/components/ReminderCard";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Reminders() {
   const location = useLocation();
@@ -14,9 +25,26 @@ export default function Reminders() {
     queryKey: ["reminders"],
     queryFn: fetchReminders,
   });
+  
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleReminderDelete = () => {
     refetch();
+  };
+
+  const handleDeleteAllReminders = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteAllReminders();
+      toast.success("All reminders deleted successfully");
+      refetch();
+    } catch (error) {
+      toast.error("Failed to delete reminders");
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
   };
 
   // Refetch reminders when component mounts or when navigating back to this page
@@ -67,15 +95,56 @@ export default function Reminders() {
             <p className="text-muted-foreground">Loading reminders...</p>
           </div>
         ) : reminders && reminders.length > 0 ? (
-          <div className="space-y-4">
-            {reminders.map((reminder, index) => (
-              <ReminderCard 
-                key={reminder.id} 
-                reminder={reminder} 
-                onDelete={handleReminderDelete}
-              />
-            ))}
-          </div>
+          <>
+            <div className="space-y-4">
+              {reminders.map((reminder) => (
+                <ReminderCard 
+                  key={reminder.id} 
+                  reminder={reminder} 
+                  onDelete={handleReminderDelete}
+                />
+              ))}
+            </div>
+            
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              className="w-full mt-6"
+              onClick={() => setDeleteDialogOpen(true)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete All Reminders
+            </Button>
+
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete All Reminders</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete all your reminders? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDeleteAllReminders}
+                    disabled={isDeleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      "Delete All"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="bg-muted/50 p-3 rounded-full mb-4">

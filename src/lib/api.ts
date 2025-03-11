@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { type Reminder } from "./types";
 import { processPrescriptionImage } from "./llamaOCR";
@@ -104,6 +103,16 @@ export const deleteReminder = (id: string): Promise<void> => {
         reject(new Error("Reminder not found"));
       }
     }, 300);
+  });
+};
+
+// Delete all reminders
+export const deleteAllReminders = (): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      saveReminders([]);
+      resolve();
+    }, 300); // Simulate network delay
   });
 };
 
